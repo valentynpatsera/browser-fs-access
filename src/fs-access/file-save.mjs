@@ -29,8 +29,6 @@ export default async (
   if (!Array.isArray(options)) {
     options = [options];
   }
-  options[0].fileName = options[0].fileName || 'Untitled';
-  const types = [];
   let type = null;
   if (
     blobOrPromiseBlobOrResponse instanceof Blob &&
@@ -43,23 +41,22 @@ export default async (
   ) {
     type = blobOrPromiseBlobOrResponse.headers.get('content-type');
   }
-  options.forEach((option, i) => {
-    types[i] = {
-      description: option.description || 'Files',
-      accept: {},
-    };
-    if (option.mimeTypes) {
+  const types = options.map((option, i) => {
+    const { description = 'Files', extensions = [], mimeTypes } = option;
+    const accept = {};
+    if (mimeTypes) {
       if (i === 0 && type) {
-        option.mimeTypes.push(type);
+        mimeTypes.push(type);
       }
-      option.mimeTypes.map((mimeType) => {
-        types[i].accept[mimeType] = option.extensions || [];
-      });
+      for (const mimeType of mimeTypes) {
+        accept[mimeType] = extensions;
+      }
     } else if (type) {
-      types[i].accept[type] = option.extensions || [];
+      accept[type] = extensions;
     } else {
-      types[i].accept['*/*'] = option.extensions || [];
+      accept['*/*'] = extensions;
     }
+    return { description, accept };
   });
   if (existingHandle) {
     try {
@@ -72,14 +69,15 @@ export default async (
       }
     }
   }
+  const [{ fileName = 'Untitled', id, startIn, excludeAcceptAllOption = false }] = options;
   const handle =
     existingHandle ||
     (await window.showSaveFilePicker({
-      suggestedName: options[0].fileName,
-      id: options[0].id,
-      startIn: options[0].startIn,
+      suggestedName: fileName,
+      id,
+      startIn,
       types,
-      excludeAcceptAllOption: options[0].excludeAcceptAllOption || false,
+      excludeAcceptAllOption,
     }));
   if (!existingHandle && filePickerShown) {
     filePickerShown(handle);
